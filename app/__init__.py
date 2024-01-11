@@ -13,6 +13,7 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 from models.BookModel import BookModel
+from models.MovieModel import MovieModel
 
 from resources.movies import bp as movies_bp
 api.register_blueprint(movies_bp)

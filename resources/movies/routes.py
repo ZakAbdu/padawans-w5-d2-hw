@@ -1,10 +1,12 @@
 from flask import request
 from uuid import uuid4
 from flask.views import MethodView
+from flask_smorest import abort
 
 from db import movies
 from . import bp
 from schemas import MovieSchema
+from models.MovieModel import MovieModel
 
 
 @bp.route('/<movie_id>')
@@ -12,39 +14,49 @@ class Movie(MethodView):
 
     @bp.response(200, MovieSchema)
     def get(self, movie_id):
-        try:
-            return movies[movie_id]
-        except KeyError:
-            return {'message': "Invalid Movie Id"}, 400
-    
+        movie = MovieModel.query.get(movie_id)
+        if movie:
+            return movie
+        else:
+            abort(400, message='Movie not found')
+       
+
     @bp.arguments(MovieSchema)
     def put(self, movie_data, movie_id):
-        try:
-            movie = movies[movie_id]
-            movie_data = request.get_json()
-            movie |= movie_data
-            return { 'message': f'{movie["title"]} updated' }, 202
-        except KeyError:
-            return { 'message': 'Invalid Movie' }, 400
-    
-    def delete(self, movie_id):
-        try:
-            del movies[movie_id]
-            return {"message": "Movie Deleted"}, 202
-        except:
-            return {"message": "Invalid Movie"}, 400
+        movie = MovieModel.query.get(movie_id)
+        if movie:
+            movie.title = movie_data['title']
+            movie.director = movie_data['director']
+            movie.year = movie_data['year']
+            movie.commit()
+            return {'message': f"{movie.title} updated"}, 202
+        return {'Message': 'Invalid Movie Id'}, 400
+      
 
+    def delete(self, movie_id):
+        movie = MovieModel.query.get(movie_id)
+        if movie:
+            movie.delete()
+            return {"Message": 'Movie Deleted From Library'}, 202
+        return {"Message": 'Invalid Movie'}, 400
+      
 
 @bp.route('/')
 class MovieList(MethodView):
 
     @bp.response(200, MovieSchema(many=True))
     def get(self):
-        return list(movies.values())
+        return MovieModel.query.all()
     
     @bp.arguments(MovieSchema)
     def post(self, movie_data):
-        movies[uuid4()] = movie_data
-        return { 'message': f'Movie: {movie_data["title"]} added to movies list' }, 201
-
-
+        try:
+            movie = MovieModel()
+            movie.title = movie_data['title']
+            movie.director = movie_data['director']
+            movie.year = movie_data['year']
+            movie.commit()
+            return {'Message': "Movie added to library"}, 201
+        except:
+            return {'Message': 'Invalid'}, 401
+       
